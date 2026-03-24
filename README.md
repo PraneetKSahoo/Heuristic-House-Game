@@ -88,7 +88,7 @@ EXPLORE → ENCOUNTER → FAIL → SEARCH → FIX → SOLVE → IDENTIFY → ESC
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/heuristic-house.git
+git clone https://github.com/PraneetKSahoo/Heuristic-House-Game.git
 cd heuristic-house
 
 # Install dependencies
