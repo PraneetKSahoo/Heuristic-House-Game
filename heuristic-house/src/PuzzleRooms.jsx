@@ -591,7 +591,7 @@ function makeNoise() {
 }
 
 function PuzzleRoom7({ hasFix, onSolve, onClose, sfx }) {
-  const [noise] = useState(() => { const n=makeNoise(); n[17]={...n[17], text:`CODE: ${CODE}`, isCode:true}; return n; });
+  const [noise] = useState(() => { const n=makeNoise(); n[0]={...n[0], text:`CODE: ${CODE}`, isCode:true}; return n; });
   const [input, setInput] = useState("");
   const [filtered, setFiltered] = useState(false);
   const [timer, setTimer] = useState(10);
@@ -627,7 +627,9 @@ function PuzzleRoom7({ hasFix, onSolve, onClose, sfx }) {
             background: item.isCode&&filtered?"rgba(0,255,204,0.15)":"rgba(50,40,70,0.5)",
             border:`1px solid ${item.isCode&&filtered?"#00ffcc":"#3a2d5855"}`,
             borderRadius:3, fontSize: filtered?"1.1rem":"0.5rem", color: item.color, whiteSpace:"nowrap",
-            margin: filtered?"80px auto":0, fontWeight: item.isCode?"bold":"normal",
+            margin: filtered?"80px auto":0, 
+            fontWeight: (item.isCode && filtered) ? "bold" : "normal",
+            opacity: (!filtered && item.isCode) ? 0.3 : 1, // Dims it heavily when buried in noise
           }}>{item.text}</div>
         ))}
       </div>
@@ -719,28 +721,50 @@ function PuzzleRoom8({ hasFix, onSolve, onClose, sfx }) {
 }
 
 // ━━━ ROOM 9: FINAL MACHINE — Help & Documentation ━━━
-const CORRECT_SW = [1,0,1,1,0,1,0,1];
-const SW_LABELS = ["Power","Coolant","Ignition","Fuel","Exhaust","Lock","Aux","Override"];
+const SW_LABELS =["Power","Coolant","Ignition","Fuel","Exhaust","Lock","Aux","Override"];
 
 function PuzzleRoom9({ hasFix, onSolve, onClose, sfx }) {
-  const [sw, setSw] = useState([0,0,0,0,0,0,0,0]);
-  const [hasManual, setHasManual] = useState(false);
+  // 1. Generate a random combination every time the room loads!
+  const [targetSw] = useState(() => Array.from({ length: 8 }, () => (Math.random() > 0.5 ? 1 : 0)));
+  const[sw, setSw] = useState([0,0,0,0,0,0,0,0]);
+  const[hasManual, setHasManual] = useState(false);
   const [sparks, setSparks] = useState(false);
-  const [attempts, setAttempts] = useState(0);
+  const [errorMsg, setErrorMsg] = useState("");
+  const[attempts, setAttempts] = useState(0);
   const [solved, setSolved] = useState(false);
 
   const toggle = (i) => { if (solved) return; const n=[...sw]; n[i]=n[i]?0:1; setSw(n); sfx.click(); };
+  
   const submit = () => {
-    if (sw.every((v,i)=>v===CORRECT_SW[i])) { setSolved(true); sfx.success(); setTimeout(onSolve, 600); }
-    else { sfx.error(); setSparks(true); setAttempts(a=>a+1); setTimeout(()=>setSparks(false), 800); }
+    // 2. Safety Interlock: Force the user to use the documentation
+    if (!hasManual) {
+      sfx.error(); 
+      setSparks(true); 
+      setAttempts(a => a + 1);
+      setErrorMsg("AUTH LOCK: REFER TO MANUAL");
+      setTimeout(() => { setSparks(false); setErrorMsg(""); }, 1200);
+      return;
+    }
+
+    // Normal check once manual is active
+    if (sw.every((v,i) => v === targetSw[i])) { 
+      setSolved(true); sfx.success(); setTimeout(onSolve, 600); 
+    } else { 
+      sfx.error(); 
+      setSparks(true); 
+      setAttempts(a => a + 1); 
+      setErrorMsg("INCORRECT CONFIGURATION");
+      setTimeout(() => { setSparks(false); setErrorMsg(""); }, 1200); 
+    }
   };
-  const installManual = () => { setHasManual(true); sfx.pickup(); };
+  
+  const installManual = () => { setHasManual(true); sfx.pickup(); setErrorMsg(""); };
   const stuck = attempts >= 2 && !hasManual;
 
   return (
     <div style={P.room}>
       <div style={{ color:"#aaa", fontSize:"0.8rem", textAlign:"center" }}>
-        {hasManual ? "📖 Manual open. Set switches per diagram." : "Set 6 switches correctly. No labels."}
+        {hasManual ? "📖 Manual open. Set switches per diagram." : "Set 8 switches correctly. No labels."}
       </div>
       <div style={{ width:"100%", maxWidth:380, background:"#0a0814", border: sparks?"2px solid #ffcc00":"2px solid #2d1b4e", borderRadius:10, padding:16, transition:"border 0.2s" }}>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(8,1fr)", gap:6, marginBottom:12 }}>
@@ -757,7 +781,12 @@ function PuzzleRoom9({ hasFix, onSolve, onClose, sfx }) {
             </div>
           ))}
         </div>
-        {sparks && <div style={{ textAlign:"center", color:"#ffcc00", fontSize:"0.8rem" }}>⚡💥 SPARKS!</div>}
+        
+        {/* Added dynamic error messages so the player knows WHY it failed */}
+        <div style={{ height: 20, textAlign:"center", color:"#ffcc00", fontSize:"0.8rem", fontWeight:"bold" }}>
+          {sparks ? `⚡💥 ${errorMsg}` : ""}
+        </div>
+
         {!solved && (
           <button style={{...P.btn, width:"100%", padding:"8px", marginTop:4}} onClick={submit}
             onMouseEnter={e=>hover(e,"#00ffcc","#000")} onMouseLeave={e=>unhover(e)}>⚡ ACTIVATE</button>
@@ -767,7 +796,8 @@ function PuzzleRoom9({ hasFix, onSolve, onClose, sfx }) {
         <div style={{ padding:10, background:"rgba(255,121,198,0.08)", border:"1px solid #ff79c644", borderRadius:8, maxWidth:380, width:"100%" }}>
           <div style={{ color:"#ff79c6", fontSize:"0.8rem", fontWeight:"bold", marginBottom:4 }}>📖 Correct Configuration:</div>
           <div style={{ display:"flex", gap:6, justifyContent:"center" }}>
-            {CORRECT_SW.map((v,i) => (
+            {/* Now mapping over the randomized targetSw instead of a hardcoded array */}
+            {targetSw.map((v,i) => (
               <div key={i} style={{ textAlign:"center" }}>
                 <div style={{ fontSize:"0.6rem", color:"#ff79c6" }}>{SW_LABELS[i]}</div>
                 <div style={{ fontSize:"0.75rem", color: v?"#50fa7b":"#ff5555", fontWeight:"bold" }}>{v?"ON":"OFF"}</div>
